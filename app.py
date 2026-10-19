@@ -22,16 +22,16 @@ st.set_page_config(
 
 ITEMS = [f"A{i}" for i in range(1, 11)]
 ITEM_DESCRIPTIONS = {
-    "A1": "A1: Notices small sounds when others do not",
-    "A2": "A2: Concentrates more on the whole picture rather than small details",
-    "A3": "A3: Finds it easy to do more than one thing at once",
-    "A4": "A4: If there is an interruption, can switch back to what they were doing very quickly",
-    "A5": "A5: Finds it easy to 'read between the lines' when someone is talking",
-    "A6": "A6: Knows how to tell if someone listening is getting bored",
-    "A7": "A7: Finds it difficult to work out characters' intentions in a story",
-    "A8": "A8: Likes to collect information about categories of things (e.g., types of cars, birds, trains)",
-    "A9": "A9: Finds it easy to work out what someone is thinking or feeling just by looking at their face",
-    "A10": "A10: Finds it difficult to work out people's intentions",
+    "A1": "Notices small sounds when others do not",
+    "A2": "Concentrates more on the whole picture rather than small details",
+    "A3": "Finds it easy to do more than one thing at once",
+    "A4": "If there is an interruption, can switch back to what they were doing very quickly",
+    "A5": "Finds it easy to 'read between the lines' when someone is talking",
+    "A6": "Knows how to tell if someone listening is getting bored",
+    "A7": "Finds it difficult to work out characters' intentions in a story",
+    "A8": "Likes to collect information about categories of things (e.g., types of cars, birds, trains)",
+    "A9": "Finds it easy to work out what someone is thinking or feeling just by looking at their face",
+    "A10": "Finds it difficult to work out people's intentions",
 }
 
 
@@ -134,13 +134,24 @@ with tab1:
                 f"(Clinical Item-Sum Cutoff: `>= {7 if age_group == 'adult' else 4}`)")
 
         st.subheader("2. AQ-10 / Q-CHAT-10 Behavioral Item Scores (0 or 1)")
-        st.caption("Toggle each screening item (1 = ASD trait indicator present, 0 = absent):")
+        st.caption("Switch a question ON if the ASD trait indicator is present (1), OFF if absent (0):")
 
-        q_cols = st.columns(2)
+        # One full-width row per question so the complete text is always visible.
         item_vals = {}
         for idx, item_key in enumerate(ITEMS):
-            with q_cols[idx % 2]:
-                item_vals[item_key] = int(st.toggle(ITEM_DESCRIPTIONS[item_key], value=(idx < 4)))
+            with st.container(border=True):
+                q_text, q_toggle = st.columns([6, 1], vertical_alignment="center")
+                with q_text:
+                    st.markdown(f"**{item_key}.** {ITEM_DESCRIPTIONS[item_key]}")
+                with q_toggle:
+                    item_vals[item_key] = int(
+                        st.toggle(
+                            f"{item_key}: {ITEM_DESCRIPTIONS[item_key]}",
+                            value=(idx < 4),
+                            key=f"toggle_{item_key}",
+                            label_visibility="collapsed",
+                        )
+                    )
 
     with col_res:
         st.subheader("3. Real-Time Screening Result")
