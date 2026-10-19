@@ -1,0 +1,33 @@
+{
+  "best_xgb_params": {},
+  "rule_accuracy": 0.9797101449275363,
+  "rule_rows": [
+    {
+      "age_group": "adolescent",
+      "n": 430,
+      "best_threshold": 4,
+      "accuracy": 0.9651
+    },
+    {
+      "age_group": "adult",
+      "n": 729,
+      "best_threshold": 7,
+      "accuracy": 1.0
+    },
+    {
+      "age_group": "child",
+      "n": 1936,
+      "best_threshold": 4,
+      "accuracy": 0.9788
+    },
+    {
+      "age_group": "young_adult",
+      "n": 355,
+      "best_threshold": 4,
+      "accuracy": 0.9606
+    }
+  ],
+  "n_train": 2760,
+  "n_test": 690,
+  "demographics_only_auc": 0.7203539901364429
+}
