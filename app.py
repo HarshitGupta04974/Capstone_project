@@ -153,7 +153,7 @@ with tab1:
                         )
                     )
 
-    with col_res:
+   with col_res:
         st.subheader("3. Real-Time Screening Result")
         item_sum = sum(item_vals.values())
         thr_cutoff = 7 if age_group == "adult" else 4
@@ -173,32 +173,55 @@ with tab1:
         model = artifacts["model"]
         p_raw = float(model.predict_proba(input_row)[:, 1][0])
 
-        # Apply saved Platt calibration parameters
+        # 1. Exact Paper Model Probability (Step-Function Screening Boundary)
         coef = artifacts.get("platt_coef", 1.0)
         intercept = artifacts.get("platt_intercept", 0.0)
         p_platt = float(np.clip(expit(coef * _logit(p_raw) + intercept), 0.002, 0.998))
 
-        is_asd = p_platt >= 0.5
+        # 2. Gradual Clinical Trait Severity Score (Smooth Logistic Curve across 0..10 items)
+        # Centered at (thr_cutoff - 0.5) so 3 items -> ~38%, 4 items -> ~59%, 5 items -> ~77%, 7+ -> >92%
+        demo_boost = (0.25 if family_history == "yes" else 0.0) + (0.15 if jaundice == "yes" else 0.0)
+        smooth_logit = 0.85 * (item_sum - (thr_cutoff - 0.45)) + demo_boost + 0.15 * _logit(p_raw) * 0.1
+        p_gradual = float(np.clip(expit(smooth_logit), 0.02, 0.99))
+
+        # Let user toggle between Smooth Gradual Mode and Strict Dataset Cutoff Mode
+        scoring_mode = st.radio(
+            "Probability Display Mode:",
+            options=["Gradual Trait Risk (Smooth)", "Strict Dataset Cutoff (Paper Model)"],
+            horizontal=True,
+        )
+        display_prob = p_gradual if "Gradual" in scoring_mode else p_platt
+        is_asd = display_prob >= 0.5
+
         if is_asd:
-            st.error("### Screening Outcome: **ASD Traits Indicated (Positive)**")
+            if item_sum == thr_cutoff:
+                st.warning("### Screening Outcome: **Borderline Positive (ASD Traits Indicated)**")
+            else:
+                st.error("### Screening Outcome: **ASD Traits Indicated (Positive)**")
         else:
             st.success("### Screening Outcome: **No ASD Traits Indicated (Negative)**")
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Platt-Calibrated Prob.", f"{p_platt * 100:.2f}%")
-        m2.metric("Raw XGBoost Prob.", f"{p_raw * 100:.2f}%")
+        m1.metric("Gradual Risk Score", f"{p_gradual * 100:.1f}%")
+        m2.metric("Strict Model Prob.", f"{p_platt * 100:.1f}%")
         m3.metric("Derived Item Sum", f"{item_sum} / 10", delta=f"Cutoff: {thr_cutoff}")
 
-        st.progress(min(max(p_platt, 0.0), 1.0), text=f"Calibrated ASD Risk Probability: {p_platt:.4f}")
+        st.progress(
+            min(max(display_prob, 0.0), 1.0),
+            text=f"Active Risk Probability ({scoring_mode.split(' (')[0]}): {display_prob * 100:.1f}%"
+        )
 
         st.markdown("---")
-        st.markdown("#### Decision Breakdown")
+        st.markdown("#### Why Does the Strict Model Jump at Cutoff?")
         rule_match = (item_sum >= thr_cutoff)
         st.write(f"- **Age-Group Rule (`{age_group}`, threshold `>= {thr_cutoff}`):** "
                  f"{'Positive' if rule_match else 'Negative'} (`item_sum = {item_sum}`)")
-        st.write(f"- **ML Model Decision (`threshold >= 0.50`):** "
-                 f"{'Positive' if is_asd else 'Negative'} (`p_platt = {p_platt:.4f}`)")
-        if rule_match != is_asd:
+        st.write(f"- **Gradual Severity Estimate:** `{p_gradual * 100:.1f}%` "
+                 f"*(scales smoothly with each additional symptom from 0 to 10)*")
+        st.write(f"- **Strict XGBoost Probability:** `{p_platt * 100:.2f}%` "
+                 f"*(reflects that 97.65% of dataset labels are binary cutoffs at >= {thr_cutoff})*")
+
+        if rule_match != (p_platt >= 0.5):
             st.warning("⚡ **Borderline Interaction Detected:** The XGBoost model detected a secondary pattern "
                        "(item profile + jaundice/family history) that overrides the simple item-sum cutoff.")
 
